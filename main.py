@@ -1,12 +1,12 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
-import psycopg2
-import google.generativeai as genai
 from dotenv import load_dotenv
+from io import BytesIO
+from cachetools import TTLCache, cached
+from db_funcs import save_pdf, get_pdf
+import google.generativeai as genai
 import os
 import PyPDF2
-from io import BytesIO
 import json
-import uuid
 
 
 # Load environment variables from .env file
@@ -14,58 +14,13 @@ load_dotenv()
 
 app = FastAPI()
 
-# Database configuration
-DB_CONFIG = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": "localhost",
-    "port": "5432",
-}
+# configure gemini
+api_key = os.getenv("API_KEY")
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel("gemini-1.5-flash")
 
-def save_pdf(name: str, content: str, metadata: dict):
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-
-        new_uuid = uuid.uuid4()
-        uuid_str = str(new_uuid)
-
-        # Insert file into database
-        cursor.execute(
-            "INSERT INTO pdf_files (id, name, content, metadata) VALUES (%s, %s, %s, %s) RETURNING id",
-            (uuid_str, name, content, metadata),
-        )
-
-        # Fetch the id
-        id = cursor.fetchone()[0]
-
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        return id
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {e}")
-
-def get_pdf(id: str):
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT name, content, metadata FROM pdf_files WHERE id=%s", (id,))
-        pdf = cursor.fetchone()
-
-        if not pdf:
-            raise HTTPException(status_code=404, detail="PDF not found")
-
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        return pdf
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+# Cache with a TTL of 10 minutes
+cache = TTLCache(maxsize=1024, ttl=600)
 
 @app.post("/v1/pdf")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -99,6 +54,18 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     return {"pdf_id": id}
 
+@cached(cache)
+def generate_response(prompt: str):
+    try:
+        response = model.generate_content(prompt)
+        return response
+    except genai.exceptions.RateLimitError:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
+    except genai.exceptions.TimeoutError:
+        raise HTTPException(status_code=504, detail="Request timed out. Please try again later.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating response: {e}")
+
 @app.post("/v1/{pdf_id}")
 async def chat_with_pdf(pdf_id: str, request: Request):
     '''
@@ -113,11 +80,6 @@ async def chat_with_pdf(pdf_id: str, request: Request):
     if not user_message:
         raise HTTPException(status_code=400, detail="Message is required")
 
-    # configure gemini
-    api_key = os.getenv("API_KEY")
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
-
     # get pdf content
     name, content, metadata = get_pdf(pdf_id)
 
@@ -127,6 +89,6 @@ File name: {name}
 File content: {content} 
 File metadata: {metadata}"""
 
-    response = model.generate_content(prompt)
+    response = generate_response(prompt)
 
     return {"response": response.text}
