@@ -8,6 +8,19 @@ Chat with PDF is a FastAPI-based application that allows users to upload PDF fil
 - Generate context-aware responses based on PDF content and user queries
 - Cache responses to improve performance
 
+## Example
+
+Response to my CV with the message: "Is he a good applicant for a backend developer role?"
+
+Based on the provided CV, Abdullah Kaan is a strong candidate for a backend developer role.  His resume highlights:
+
+* Relevant Skills:  Proficiency in Go (demonstrated by the Gator project), Python, and experience with databases (PostgreSQL, SQL).  His Boot.dev backend development certification further strengthens this.
+* Project Experience: The \"Gator\" project specifically showcases his backend skills, demonstrating his ability to build a CLI tool with database integration.
+* Education: Completion of a rigorous backend development program (Boot.dev) and a Computer Engineering BSc.  His coursework includes relevant subjects like algorithms, data structures, and database systems.
+* Other Relevant Skills: Experience with Docker and CI/CD pipelines (GitHub Workflow) are valuable assets for a backend developer.
+
+While his experience is somewhat limited, his recent completion of the Boot.dev program and his demonstrated skills in Go and database management make him a promising candidate. The lack of extensive professional backend experience should be considered, but his potential is evident.
+
 ## Requirements
 
 - Python
