@@ -67,17 +67,17 @@ def generate_response(prompt: str):
         raise HTTPException(status_code=500, detail=f"Error generating response: {e}")
 
 @app.post("/v1/{pdf_id}")
-async def chat_with_pdf(pdf_id: str, request: Request):
+async def chat_with_pdf(request: Request, pdf_id: str):
     '''
     Expected request:
     {
         "message": "User message"
     }
     '''
-    body = await request.json()
-    user_message = body.get("message")
-
-    if not user_message:
+    try:
+        body = await request.json()
+        user_message = body.get("message")
+    except Exception as e:
         raise HTTPException(status_code=400, detail="Message is required")
 
     # get pdf content
