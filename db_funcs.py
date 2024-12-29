@@ -60,3 +60,16 @@ def get_pdf(id: str):
         return pdf
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+def delete_pdf(id: str):
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM pdf_files WHERE id=%s", (id,))
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")

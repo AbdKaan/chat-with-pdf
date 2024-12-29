@@ -1,11 +1,11 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from pypdf import PdfReader
 from dotenv import load_dotenv
 from io import BytesIO
 from cachetools import TTLCache, cached
 from db_funcs import save_pdf, get_pdf
 import google.generativeai as genai
 import os
-import PyPDF2
 import json
 
 
@@ -39,7 +39,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     # Content
     file_content = await file.read()
-    pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
+    pdf_reader = PdfReader(BytesIO(file_content))
     num_pages = len(pdf_reader.pages)
     text = ""
     for page_num in range(num_pages):
